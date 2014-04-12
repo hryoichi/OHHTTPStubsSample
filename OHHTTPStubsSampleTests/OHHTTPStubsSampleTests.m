@@ -6,29 +6,44 @@
 //  Copyright (c) 2014年 Ryoichi Hara. All rights reserved.
 //
 
-#import <XCTest/XCTest.h>
+#import <Specta/Specta.h>
+#import <Expecta/Expecta.h>
+#import <OHHTTPStubs/OHHTTPStubs.h>
+#import <OHHTTPStubs/OHHTTPStubsResponse+JSON.h>
+#import "HRYAPIManager.h"
 
-@interface OHHTTPStubsSampleTests : XCTestCase
+SpecBegin(HRYAPIManager)
 
-@end
+describe(@"HRYAPIManager", ^{
+    __block HRYAPIManager *manager;
 
-@implementation OHHTTPStubsSampleTests
+    beforeEach(^{
+        manager = [HRYAPIManager sharedManager];
 
-- (void)setUp
-{
-    [super setUp];
-    // Put setup code here. This method is called before the invocation of each test method in the class.
-}
+        [OHHTTPStubs stubRequestsPassingTest:^BOOL(NSURLRequest *request) {
+            return [request.URL.host isEqualToString:@"api.hryoichi.com"];
+        } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
+            id JSONObject = @{@"message": @"Hello, OHHTTPStubs!"};
+            return [OHHTTPStubsResponse responseWithJSONObject:JSONObject statusCode:200 headers:nil];
+        }];
+    });
 
-- (void)tearDown
-{
-    // Put teardown code here. This method is called after the invocation of each test method in the class.
-    [super tearDown];
-}
+    afterEach(^{
+        [OHHTTPStubs removeAllStubs];
+    });
 
-- (void)testExample
-{
-    XCTFail(@"No implementation for \"%s\"", __PRETTY_FUNCTION__);
-}
+    it(@"should not be nil", ^AsyncBlock {
+        __block id result = nil;
 
-@end
+        [manager GET:@"/" parameters:nil success:^(NSURLSessionDataTask *task, id responseObject) {
+            result = responseObject;
+            done();
+        } failure:^(NSURLSessionDataTask *task, NSError *error) {
+            done();
+        }];
+
+        EXP_expect(result[@"message"]).will.equal(@"Hello, OHHTTPStubs!");
+    });
+});
+
+SpecEnd
